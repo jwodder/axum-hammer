@@ -71,7 +71,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn sleep_endpoint(Query(params): Query<SleepParams>) -> String {
-    let naptime = params.get_duration(&mut thread_rng());
+    let naptime = params.get_duration(thread_rng());
     tokio::time::sleep(naptime).await;
     format!("Slept for {naptime:?}\n")
 }
