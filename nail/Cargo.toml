@@ -1,0 +1,21 @@
+[package]
+name = "axum-nail"
+version = "0.1.0-dev"
+edition.workspace = true
+rust-version.workspace = true
+description = "Axum server MVCE to concurrently hammer on"
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow = "1.0.86"
+axum = "0.7.5"
+clap = { version = "4.5.4", default-features = false, features = ["derive", "error-context", "help", "std", "suggestions", "usage", "wrap_help"] }
+tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
+
+[dev-dependencies]
+
+[lints]
+workspace = true
