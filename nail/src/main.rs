@@ -1,7 +1,7 @@
 mod consts;
 mod sleep;
 mod subpages;
-use crate::sleep::{sleep_for_params, sleep_handler};
+use crate::sleep::{sleep_for_params, sleep_handler, Sleeper};
 use crate::subpages::SubpageService;
 use anyhow::Context;
 use axum::{extract::Request, routing::get, Router};
@@ -61,6 +61,7 @@ fn main() -> anyhow::Result<()> {
 #[tokio::main]
 async fn run(args: Arguments) -> anyhow::Result<()> {
     let subpages = Arc::new(SubpageService::new(thread_rng()));
+    let sleeper = Arc::new(Sleeper);
     let app = Router::new()
         .route("/hello", get(|| async { "Hello, world!\n" }))
         .route("/sleep", get(sleep_for_params))
@@ -72,6 +73,13 @@ async fn run(args: Arguments) -> anyhow::Result<()> {
             }),
         )
         .nest_service("/sleep-service", service_fn(sleep_handler))
+        .nest_service(
+            "/sleep-arc-service",
+            service_fn(move |req: Request| {
+                let sleeper = Arc::clone(&sleeper);
+                async move { sleeper.handle(req).await }
+            }),
+        )
         .layer(TraceLayer::new_for_http());
     let listener = tokio::net::TcpListener::bind((args.ip_addr, args.port))
         .await

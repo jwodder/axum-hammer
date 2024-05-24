@@ -8,6 +8,7 @@ use axum::{
 use rand::thread_rng;
 use rand::Rng;
 use serde::Deserialize;
+use std::convert::Infallible;
 use std::time::Duration;
 use thiserror::Error;
 
@@ -48,9 +49,16 @@ struct RawSleepParams {
     max: Option<u64>,
 }
 
-pub(crate) async fn sleep_handler(
-    mut req: Request,
-) -> Result<Response<Body>, std::convert::Infallible> {
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct Sleeper;
+
+impl Sleeper {
+    pub(crate) async fn handle(&self, req: Request) -> Result<Response<Body>, Infallible> {
+        sleep_handler(req).await
+    }
+}
+
+pub(crate) async fn sleep_handler(mut req: Request) -> Result<Response<Body>, Infallible> {
     match req.extract_parts::<Query<SleepParams>>().await {
         Ok(params) => Ok(sleep_for_params(params).await),
         Err(e) => Ok(e.into_response()),
