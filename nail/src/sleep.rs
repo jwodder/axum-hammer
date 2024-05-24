@@ -1,3 +1,11 @@
+use axum::{
+    body::Body,
+    extract::{Query, Request},
+    http::response::Response,
+    response::IntoResponse,
+    RequestExt,
+};
+use rand::thread_rng;
 use rand::Rng;
 use serde::Deserialize;
 use std::time::Duration;
@@ -38,4 +46,19 @@ struct SleepParamsError;
 struct RawSleepParams {
     min: Option<u64>,
     max: Option<u64>,
+}
+
+pub(crate) async fn sleep_handler(
+    mut req: Request,
+) -> Result<Response<Body>, std::convert::Infallible> {
+    match req.extract_parts::<Query<SleepParams>>().await {
+        Ok(params) => Ok(sleep_for_params(params).await),
+        Err(e) => Ok(e.into_response()),
+    }
+}
+
+pub(crate) async fn sleep_for_params(Query(params): Query<SleepParams>) -> Response<Body> {
+    let naptime = params.get_duration(thread_rng());
+    tokio::time::sleep(naptime).await;
+    format!("Slept for {naptime:?}\n").into_response()
 }

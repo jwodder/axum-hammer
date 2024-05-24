@@ -1,15 +1,10 @@
 mod consts;
+mod sleep;
 mod subpages;
-mod types;
+use crate::sleep::{sleep_for_params, sleep_handler};
 use crate::subpages::SubpageService;
-use crate::types::SleepParams;
 use anyhow::Context;
-use axum::{
-    extract::{Query, Request},
-    response::IntoResponse,
-    routing::get,
-    RequestExt, Router,
-};
+use axum::{extract::Request, routing::get, Router};
 use clap::Parser;
 use rand::thread_rng;
 use std::io::{stderr, IsTerminal};
@@ -68,7 +63,7 @@ async fn run(args: Arguments) -> anyhow::Result<()> {
     let subpages = Arc::new(SubpageService::new(thread_rng()));
     let app = Router::new()
         .route("/hello", get(|| async { "Hello, world!\n" }))
-        .route("/sleep", get(sleep_endpoint))
+        .route("/sleep", get(sleep_for_params))
         .nest_service(
             "/subpages",
             service_fn(move |req: Request| {
@@ -76,16 +71,7 @@ async fn run(args: Arguments) -> anyhow::Result<()> {
                 async move { subpages.handle_request(req).await }
             }),
         )
-        .nest_service(
-            "/sleep-service",
-            service_fn(|mut req: Request| async move {
-                let r = match req.extract_parts::<Query<SleepParams>>().await {
-                    Ok(params) => sleep_endpoint(params).await.into_response(),
-                    Err(e) => e.into_response(),
-                };
-                Ok::<_, std::convert::Infallible>(r)
-            }),
-        )
+        .nest_service("/sleep-service", service_fn(sleep_handler))
         .layer(TraceLayer::new_for_http());
     let listener = tokio::net::TcpListener::bind((args.ip_addr, args.port))
         .await
@@ -94,10 +80,4 @@ async fn run(args: Arguments) -> anyhow::Result<()> {
         .await
         .context("failed to serve application")?;
     Ok(())
-}
-
-async fn sleep_endpoint(Query(params): Query<SleepParams>) -> String {
-    let naptime = params.get_duration(thread_rng());
-    tokio::time::sleep(naptime).await;
-    format!("Slept for {naptime:?}\n")
 }
