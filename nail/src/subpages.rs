@@ -14,11 +14,17 @@ use std::convert::Infallible;
 use std::fmt::Write;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct SubpageService(BTreeMap<String, Vec<u8>>);
+pub(crate) struct SubpageService {
+    path: &'static str, // Stored without leading or trailing "/"
+    data: BTreeMap<String, Vec<u8>>,
+}
 
 impl SubpageService {
-    pub(crate) fn new<R: Rng>(rng: R) -> SubpageService {
-        SubpageService(gen_subpages(rng))
+    pub(crate) fn new<R: Rng>(path: &'static str, rng: R) -> SubpageService {
+        SubpageService {
+            path: path.trim_matches('/'),
+            data: gen_subpages(rng),
+        }
     }
 
     #[allow(clippy::unused_async)]
@@ -26,14 +32,16 @@ impl SubpageService {
         &self,
         req: Request<Body>,
     ) -> Result<Response<Body>, Infallible> {
-        let path = req.uri().path().trim_start_matches('/');
-        if path.is_empty() {
+        // ↓↓ Does not have leading "/{self.path}"
+        let reqpath = req.uri().path().trim_start_matches('/');
+        if reqpath.is_empty() {
             let mut body = String::new();
-            for key in self.0.keys() {
-                writeln!(&mut body, "{key}").expect("Writing to a String should not fail");
+            for key in self.data.keys() {
+                writeln!(&mut body, "/{}/{}", self.path, key)
+                    .expect("Writing to a String should not fail");
             }
             Ok(body.into_response())
-        } else if let Some(body) = self.0.get(path) {
+        } else if let Some(body) = self.data.get(reqpath) {
             Ok(body.clone().into_response())
         } else {
             Ok((StatusCode::NOT_FOUND, "404\n").into_response())

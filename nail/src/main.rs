@@ -60,7 +60,7 @@ fn main() -> anyhow::Result<()> {
 
 #[tokio::main]
 async fn run(args: Arguments) -> anyhow::Result<()> {
-    let subpages = Arc::new(SubpageService::new(thread_rng()));
+    let subpages = Arc::new(SubpageService::new("/subpages", thread_rng()));
     let sleeper = Arc::new(Sleeper);
     let app = Router::new()
         .route("/hello", get(|| async { "Hello, world!\n" }))

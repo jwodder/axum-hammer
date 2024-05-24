@@ -59,7 +59,9 @@ async fn main() -> anyhow::Result<()> {
                 let body = r.text().await?;
                 let mut tasks = BufferedTasks::from_iter(
                     workqty.get(),
-                    body.lines().map(|key| get_url(urljoin(&url, [key]))),
+                    body.lines().map(|path| {
+                        get_url(url.join(path).expect("URL should be able to be a base"))
+                    }),
                 );
                 while tasks.try_next().await? == Some(()) {
                     qty += 1;
@@ -75,17 +77,4 @@ async fn main() -> anyhow::Result<()> {
 async fn get_url(url: Url) -> anyhow::Result<()> {
     reqwest::get(url).await?.error_for_status()?;
     Ok(())
-}
-
-fn urljoin<I>(url: &Url, segments: I) -> Url
-where
-    I: IntoIterator,
-    I::Item: AsRef<str>,
-{
-    let mut url = url.clone();
-    url.path_segments_mut()
-        .expect("URL should be able to be a base")
-        .pop_if_empty()
-        .extend(segments);
-    url
 }
