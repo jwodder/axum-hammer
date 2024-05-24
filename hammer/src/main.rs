@@ -11,22 +11,25 @@ struct Arguments {
 
     requests: NonZeroUsize,
 
-    workers: NonZeroUsize,
+    #[arg(required = true)]
+    workers: Vec<NonZeroUsize>,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Arguments::parse();
-    let start = Instant::now();
-    let tasks = BufferedTasks::from_iter(
-        args.workers.get(),
-        std::iter::repeat(args.url)
-            .take(args.requests.get())
-            .map(get_url),
-    );
-    tasks.try_collect::<()>().await?;
-    let elapsed = start.elapsed();
-    println!("{elapsed:?}");
+    for workqty in args.workers {
+        let start = Instant::now();
+        let tasks = BufferedTasks::from_iter(
+            workqty.get(),
+            std::iter::repeat(args.url.clone())
+                .take(args.requests.get())
+                .map(get_url),
+        );
+        tasks.try_collect::<()>().await?;
+        let elapsed = start.elapsed();
+        println!("{workqty} workers: {elapsed:?}");
+    }
     Ok(())
 }
 
