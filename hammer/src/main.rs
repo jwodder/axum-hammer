@@ -75,6 +75,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn get_url(url: Url) -> anyhow::Result<()> {
-    reqwest::get(url).await?.error_for_status()?;
+    let r = reqwest::get(url).await?.error_for_status()?;
+    let _ = r.bytes().await?;
     Ok(())
 }
