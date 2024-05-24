@@ -27,6 +27,25 @@ impl SubpageService {
         }
     }
 
+    #[allow(clippy::unnecessary_wraps)]
+    pub(crate) fn index_response(&self) -> Result<Response<Body>, Infallible> {
+        let mut body = String::new();
+        for key in self.data.keys() {
+            writeln!(&mut body, "/{}/{}", self.path, key)
+                .expect("Writing to a String should not fail");
+        }
+        Ok(body.into_response())
+    }
+
+    #[allow(clippy::unnecessary_wraps)]
+    pub(crate) fn subpage_response(&self, key: &str) -> Result<Response<Body>, Infallible> {
+        if let Some(body) = self.data.get(key) {
+            Ok(body.clone().into_response())
+        } else {
+            Ok((StatusCode::NOT_FOUND, "404\n").into_response())
+        }
+    }
+
     #[allow(clippy::unused_async)]
     pub(crate) async fn handle_request(
         &self,
@@ -35,16 +54,9 @@ impl SubpageService {
         // ↓↓ Does not have leading "/{self.path}"
         let reqpath = req.uri().path().trim_start_matches('/');
         if reqpath.is_empty() {
-            let mut body = String::new();
-            for key in self.data.keys() {
-                writeln!(&mut body, "/{}/{}", self.path, key)
-                    .expect("Writing to a String should not fail");
-            }
-            Ok(body.into_response())
-        } else if let Some(body) = self.data.get(reqpath) {
-            Ok(body.clone().into_response())
+            self.index_response()
         } else {
-            Ok((StatusCode::NOT_FOUND, "404\n").into_response())
+            self.subpage_response(reqpath)
         }
     }
 }

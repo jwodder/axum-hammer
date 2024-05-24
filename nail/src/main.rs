@@ -4,7 +4,11 @@ mod subpages;
 use crate::sleep::{sleep_for_params, sleep_handler, Sleeper};
 use crate::subpages::SubpageService;
 use anyhow::Context;
-use axum::{extract::Request, routing::get, Router};
+use axum::{
+    extract::{Path, Request},
+    routing::get,
+    Router,
+};
 use clap::Parser;
 use rand::thread_rng;
 use std::io::{stderr, IsTerminal};
@@ -60,16 +64,37 @@ fn main() -> anyhow::Result<()> {
 
 #[tokio::main]
 async fn run(args: Arguments) -> anyhow::Result<()> {
-    let subpages = Arc::new(SubpageService::new("/subpages", thread_rng()));
+    let mut rng = thread_rng();
+    let subpages = SubpageService::new("/subpages", &mut rng);
+    let subpages_pages = subpages.clone();
+    let subpages_arc = Arc::new(SubpageService::new("/subpages-arc", &mut rng));
+    let subpages_arc_pages = Arc::clone(&subpages_arc);
+    let subpages_service = Arc::new(SubpageService::new("/subpages-service", &mut rng));
     let sleeper = Arc::new(Sleeper);
     let app = Router::new()
         .route("/hello", get(|| async { "Hello, world!\n" }))
         .route("/sleep", get(sleep_for_params))
-        .nest_service(
+        .route(
             "/subpages",
+            get(move || async move { subpages.index_response() }),
+        )
+        .route(
+            "/subpages/:key",
+            get(move |key: Path<String>| async move { subpages_pages.subpage_response(&key) }),
+        )
+        .route(
+            "/subpages-arc",
+            get(move || async move { subpages_arc.index_response() }),
+        )
+        .route(
+            "/subpages-arc/:key",
+            get(move |key: Path<String>| async move { subpages_arc_pages.subpage_response(&key) }),
+        )
+        .nest_service(
+            "/subpages-service",
             service_fn(move |req: Request| {
-                let subpages = Arc::clone(&subpages);
-                async move { subpages.handle_request(req).await }
+                let s = Arc::clone(&subpages_service);
+                async move { s.handle_request(req).await }
             }),
         )
         .nest_service("/sleep-service", service_fn(sleep_handler))
