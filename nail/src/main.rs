@@ -6,8 +6,9 @@ use crate::types::SleepParams;
 use anyhow::Context;
 use axum::{
     extract::{Query, Request},
+    response::IntoResponse,
     routing::get,
-    Router,
+    RequestExt, Router,
 };
 use clap::Parser;
 use rand::thread_rng;
@@ -73,6 +74,16 @@ async fn run(args: Arguments) -> anyhow::Result<()> {
             service_fn(move |req: Request| {
                 let subpages = Arc::clone(&subpages);
                 async move { subpages.handle_request(req).await }
+            }),
+        )
+        .nest_service(
+            "/sleep-service",
+            service_fn(|mut req: Request| async move {
+                let r = match req.extract_parts::<Query<SleepParams>>().await {
+                    Ok(params) => sleep_endpoint(params).await.into_response(),
+                    Err(e) => e.into_response(),
+                };
+                Ok::<_, std::convert::Infallible>(r)
             }),
         )
         .layer(TraceLayer::new_for_http());
