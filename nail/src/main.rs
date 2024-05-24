@@ -1,11 +1,20 @@
+mod consts;
+mod subpages;
 mod types;
+use crate::subpages::SubpageService;
 use crate::types::SleepParams;
 use anyhow::Context;
-use axum::{extract::Query, routing::get, Router};
+use axum::{
+    extract::{Query, Request},
+    routing::get,
+    Router,
+};
 use clap::Parser;
 use rand::thread_rng;
 use std::io::{stderr, IsTerminal};
 use std::net::IpAddr;
+use std::sync::Arc;
+use tower::service_fn;
 use tower_http::trace::TraceLayer;
 use tracing::Level;
 use tracing_subscriber::{filter::Targets, fmt::time::OffsetTime, prelude::*};
@@ -55,9 +64,17 @@ fn main() -> anyhow::Result<()> {
 
 #[tokio::main]
 async fn run(args: Arguments) -> anyhow::Result<()> {
+    let subpages = Arc::new(SubpageService::new(thread_rng()));
     let app = Router::new()
         .route("/hello", get(|| async { "Hello, world!\n" }))
         .route("/sleep", get(sleep_endpoint))
+        .nest_service(
+            "/subpages",
+            service_fn(move |req: Request| {
+                let subpages = Arc::clone(&subpages);
+                async move { subpages.handle_request(req).await }
+            }),
+        )
         .layer(TraceLayer::new_for_http());
     let listener = tokio::net::TcpListener::bind((args.ip_addr, args.port))
         .await

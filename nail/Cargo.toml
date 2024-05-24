@@ -17,6 +17,7 @@ rand = "0.8.5"
 serde = { version = "1.0.202", features = ["derive"] }
 thiserror = "1.0.61"
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
+tower = "0.4.13"
 tower-http = { version = "0.5.2", features = ["trace"] }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["local-time", "time"] }
