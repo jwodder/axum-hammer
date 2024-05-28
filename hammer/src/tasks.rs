@@ -22,18 +22,14 @@ pub(crate) fn request_tasks<I: IntoIterator<Item = Url>>(
     limit: usize,
     urls: I,
 ) -> anyhow::Result<RequestTasks> {
-    let mut clients = Vec::with_capacity(limit);
-    for _ in 0..limit {
-        clients.push(
-            reqwest::Client::builder()
-                .build()
-                .context("failed to create client")?,
-        );
-    }
+    let client = reqwest::Client::builder()
+        .build()
+        .context("failed to create client")?;
     let (sender, receiver) = channel(32);
     let jobs = urls.into_iter().collect::<JobQueue>();
     let mut killers = Vec::with_capacity(limit);
-    for client in clients {
+    for _ in 0..limit {
+        let client = client.clone();
         let sender = sender.clone();
         let jobs = jobs.clone();
         let handle = tokio::spawn(async move {
