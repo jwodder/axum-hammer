@@ -1,5 +1,6 @@
 mod tasks;
 use crate::tasks::request_tasks;
+use anyhow::Context;
 use clap::{Parser, Subcommand};
 use futures_util::TryStreamExt;
 use statrs::statistics::{Data, Distribution};
@@ -41,9 +42,12 @@ async fn main() -> anyhow::Result<()> {
         } => (Session::Repeat { url, requests }, workers),
         Command::Subpages { url, workers } => (Session::Subpages { root_url: url }, workers),
     };
+    let client = reqwest::Client::builder()
+        .build()
+        .context("failed to create client")?;
     println!("{}", Report::csv_header());
     for w in worker_qtys {
-        let r = session.run(w).await?;
+        let r = session.run(&client, w).await?;
         println!("{}", r.as_csv());
     }
     Ok(())
@@ -56,30 +60,36 @@ enum Session {
 }
 
 impl Session {
-    async fn run(&self, workers: NonZeroUsize) -> anyhow::Result<Report> {
+    async fn run(&self, client: &reqwest::Client, workers: NonZeroUsize) -> anyhow::Result<Report> {
         let (times, overall_time) = match self {
             Session::Repeat { url, requests } => {
                 let start = Instant::now();
                 let tasks = request_tasks(
+                    client,
                     workers.get(),
                     std::iter::repeat(url.clone()).take(requests.get()),
-                )?;
+                );
                 let times = tasks.try_collect::<Vec<_>>().await?;
                 (times, start.elapsed())
             }
             Self::Subpages { root_url } => {
                 let start = Instant::now();
-                let r = reqwest::get(root_url.clone()).await?.error_for_status()?;
+                let r = client
+                    .get(root_url.clone())
+                    .send()
+                    .await?
+                    .error_for_status()?;
                 let body = r.text().await?;
                 let mut times = vec![start.elapsed()];
                 let mut tasks = request_tasks(
+                    client,
                     workers.get(),
                     body.lines().map(|path| {
                         root_url
                             .join(path)
                             .expect("URL should be able to be a base")
                     }),
-                )?;
+                );
                 while let Some(d) = tasks.try_next().await? {
                     times.push(d);
                 }

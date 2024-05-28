@@ -1,4 +1,3 @@
-use anyhow::Context as _;
 use futures_util::Stream;
 use std::collections::VecDeque;
 use std::pin::Pin;
@@ -19,12 +18,10 @@ pub(crate) struct RequestTasks {
 }
 
 pub(crate) fn request_tasks<I: IntoIterator<Item = Url>>(
+    client: &reqwest::Client,
     limit: usize,
     urls: I,
-) -> anyhow::Result<RequestTasks> {
-    let client = reqwest::Client::builder()
-        .build()
-        .context("failed to create client")?;
+) -> RequestTasks {
     let (sender, receiver) = channel(32);
     let jobs = urls.into_iter().collect::<JobQueue>();
     let mut killers = Vec::with_capacity(limit);
@@ -41,7 +38,7 @@ pub(crate) fn request_tasks<I: IntoIterator<Item = Url>>(
         });
         killers.push(handle.abort_handle());
     }
-    Ok(RequestTasks { killers, receiver })
+    RequestTasks { killers, receiver }
 }
 
 impl Drop for RequestTasks {
