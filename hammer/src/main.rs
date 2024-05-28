@@ -1,5 +1,5 @@
-mod buffered_tasks;
-use crate::buffered_tasks::BufferedTasks;
+mod tasks;
+use crate::tasks::request_tasks;
 use clap::{Parser, Subcommand};
 use futures_util::TryStreamExt;
 use statrs::statistics::{Data, Distribution};
@@ -60,12 +60,10 @@ impl Session {
         let (times, overall_time) = match self {
             Session::Repeat { url, requests } => {
                 let start = Instant::now();
-                let tasks = BufferedTasks::from_iter(
+                let tasks = request_tasks(
                     workers.get(),
-                    std::iter::repeat(url.clone())
-                        .take(requests.get())
-                        .map(get_url),
-                );
+                    std::iter::repeat(url.clone()).take(requests.get()),
+                )?;
                 let times = tasks.try_collect::<Vec<_>>().await?;
                 (times, start.elapsed())
             }
@@ -74,16 +72,14 @@ impl Session {
                 let r = reqwest::get(root_url.clone()).await?.error_for_status()?;
                 let body = r.text().await?;
                 let mut times = vec![start.elapsed()];
-                let mut tasks = BufferedTasks::from_iter(
+                let mut tasks = request_tasks(
                     workers.get(),
                     body.lines().map(|path| {
-                        get_url(
-                            root_url
-                                .join(path)
-                                .expect("URL should be able to be a base"),
-                        )
+                        root_url
+                            .join(path)
+                            .expect("URL should be able to be a base")
                     }),
-                );
+                )?;
                 while let Some(d) = tasks.try_next().await? {
                     times.push(d);
                 }
@@ -150,11 +146,4 @@ impl Stats {
         let qty = data.len();
         Stats { mean, stddev, qty }
     }
-}
-
-async fn get_url(url: Url) -> anyhow::Result<Duration> {
-    let start = Instant::now();
-    let r = reqwest::get(url).await?.error_for_status()?;
-    let _ = r.bytes().await?;
-    Ok(start.elapsed())
 }
