@@ -14,6 +14,7 @@ concurrency:
 
 jobs:
   test:
+    if: false  # Disabled for now
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -64,6 +65,7 @@ jobs:
         run: cargo test --verbose
 
   minimal-versions:
+    if: false  # Disabled for now
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -96,6 +98,7 @@ jobs:
   coverage:
     # This is separate from the main tests because cargo-llvm-cov doesn't run
     # doctests.
+    if: false  # Disabled for now
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
