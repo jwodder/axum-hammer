@@ -87,7 +87,14 @@ async fn run(args: Arguments) -> anyhow::Result<()> {
                 )
         })
         .nest_service("/subpages-service", {
-            let subpages = Arc::new(SubpageService::new("/subpages-service", &mut rng));
+            let subpages = SubpageService::new("/subpages-service", &mut rng);
+            service_fn(move |req: Request| {
+                let s = subpages.clone();
+                async move { s.handle_request(req).await }
+            })
+        })
+        .nest_service("/subpages-service-arc", {
+            let subpages = Arc::new(SubpageService::new("/subpages-service-arc", &mut rng));
             service_fn(move |req: Request| {
                 let s = Arc::clone(&subpages);
                 async move { s.handle_request(req).await }
