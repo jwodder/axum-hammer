@@ -1,4 +1,3 @@
-use crate::consts::{SUBPAGE_BODY_LEN, SUBPAGE_NAME_LEN, SUBPAGE_QTY};
 use axum::{
     body::Body,
     extract::Request,
@@ -12,6 +11,12 @@ use rand::{
 use std::collections::BTreeMap;
 use std::convert::Infallible;
 use std::fmt::Write;
+
+const SUBPAGE_QTY: usize = 200;
+
+const SUBPAGE_NAME_LEN: usize = 10;
+
+const SUBPAGE_BODY_LEN: usize = 257;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct SubpageService {

@@ -1,4 +1,3 @@
-mod consts;
 mod sleep;
 mod subpages;
 use crate::sleep::{sleep_for_params, sleep_handler, Sleeper};
