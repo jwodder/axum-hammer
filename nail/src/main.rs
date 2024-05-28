@@ -51,9 +51,6 @@ fn main() -> anyhow::Result<()> {
             .with(
                 Targets::new()
                     .with_target(env!("CARGO_CRATE_NAME"), Level::TRACE)
-                    .with_target("aws_config", Level::DEBUG)
-                    .with_target("reqwest", Level::TRACE)
-                    .with_target("reqwest_retry", Level::TRACE)
                     .with_target("tower_http", Level::TRACE)
                     .with_default(Level::INFO),
             )
@@ -65,38 +62,37 @@ fn main() -> anyhow::Result<()> {
 #[tokio::main]
 async fn run(args: Arguments) -> anyhow::Result<()> {
     let mut rng = thread_rng();
-    let subpages = SubpageService::new("/subpages", &mut rng);
-    let subpages_pages = subpages.clone();
-    let subpages_arc = Arc::new(SubpageService::new("/subpages-arc", &mut rng));
-    let subpages_arc_pages = Arc::clone(&subpages_arc);
-    let subpages_service = Arc::new(SubpageService::new("/subpages-service", &mut rng));
     let sleeper = Arc::new(Sleeper);
     let app = Router::new()
         .route("/hello", get(|| async { "Hello, world!\n" }))
         .route("/sleep", get(sleep_for_params))
-        .route(
-            "/subpages",
-            get(move || async move { subpages.index_response() }),
-        )
-        .route(
-            "/subpages/:key",
-            get(move |key: Path<String>| async move { subpages_pages.subpage_response(&key) }),
-        )
-        .route(
-            "/subpages-arc",
-            get(move || async move { subpages_arc.index_response() }),
-        )
-        .route(
-            "/subpages-arc/:key",
-            get(move |key: Path<String>| async move { subpages_arc_pages.subpage_response(&key) }),
-        )
-        .nest_service(
-            "/subpages-service",
+        .nest("/subpages", {
+            let subpages = SubpageService::new("/subpages", &mut rng);
+            let subpages2 = subpages.clone();
+            Router::new()
+                .route("/", get(move || async move { subpages.index_response() }))
+                .route(
+                    "/:key",
+                    get(move |key: Path<String>| async move { subpages2.subpage_response(&key) }),
+                )
+        })
+        .nest("/subpages-arc", {
+            let subpages = Arc::new(SubpageService::new("/subpages-arc", &mut rng));
+            let subpages2 = Arc::clone(&subpages);
+            Router::new()
+                .route("/", get(move || async move { subpages.index_response() }))
+                .route(
+                    "/:key",
+                    get(move |key: Path<String>| async move { subpages2.subpage_response(&key) }),
+                )
+        })
+        .nest_service("/subpages-service", {
+            let subpages = Arc::new(SubpageService::new("/subpages-service", &mut rng));
             service_fn(move |req: Request| {
-                let s = Arc::clone(&subpages_service);
+                let s = Arc::clone(&subpages);
                 async move { s.handle_request(req).await }
-            }),
-        )
+            })
+        })
         .nest_service("/sleep-service", service_fn(sleep_handler))
         .nest_service(
             "/sleep-arc-service",
