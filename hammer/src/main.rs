@@ -25,6 +25,9 @@ enum Command {
         workers: Vec<NonZeroUsize>,
     },
     Subpages {
+        #[arg(short, long, default_value = "10")]
+        samples: NonZeroUsize,
+
         url: Url,
 
         #[arg(required = true)]
@@ -40,7 +43,17 @@ async fn main() -> anyhow::Result<()> {
             requests,
             workers,
         } => (Session::Repeat { url, requests }, workers),
-        Command::Subpages { url, workers } => (Session::Subpages { root_url: url }, workers),
+        Command::Subpages {
+            url,
+            workers,
+            samples,
+        } => (
+            Session::Subpages { root_url: url },
+            workers
+                .into_iter()
+                .flat_map(|w| std::iter::repeat(w).take(samples.get()))
+                .collect(),
+        ),
     };
     let client = reqwest::Client::builder()
         .build()
