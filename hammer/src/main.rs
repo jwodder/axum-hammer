@@ -1,4 +1,6 @@
+mod show_duration;
 mod tasks;
+use crate::show_duration::show_duration_as_seconds;
 use crate::tasks::request_tasks;
 use anyhow::Context;
 use clap::{Parser, Subcommand};
@@ -141,7 +143,7 @@ impl Report {
             self.requests,
             self.request_time_mean,
             self.request_time_stddev,
-            self.overall_time.as_secs_f64()
+            show_duration_as_seconds(self.overall_time),
         )
     }
 }
