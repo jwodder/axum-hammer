@@ -3,10 +3,6 @@ set -ex
 
 cd "$(dirname "$0")"
 
-now="$(date -u +%Y.%m.%d-%H.%M.%SZ)"
-
-mkdir -p stats/"$now"
-
 cargo build -r -p axum-hammer -p axum-nail
 
 cargo run -r -p axum-nail &
@@ -15,6 +11,9 @@ trap "kill $!" EXIT
 while ! nc -w1 -z 127.0.0.1 8080
 do sleep 1
 done
+
+now="$(date -u +%Y.%m.%d-%H.%M.%SZ)"
+mkdir -p stats/"$now"
 
 for endpoint in subpages subpages-arc subpages-service subpages-service-arc
 do
