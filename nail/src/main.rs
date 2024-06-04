@@ -113,6 +113,12 @@ async fn run(args: Arguments) -> anyhow::Result<()> {
                 async move { sleeper.handle(req).await }
             }),
         )
+        .nest_service(
+            "/simple-service",
+            service_fn(|req: Request| async move {
+                Ok::<_, std::convert::Infallible>(req.uri().path().to_owned())
+            }),
+        )
         .layer(TraceLayer::new_for_http());
     let listener = tokio::net::TcpListener::bind((args.ip_addr, args.port))
         .await

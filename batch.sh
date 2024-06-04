@@ -36,6 +36,7 @@ sleep?min=10&max=25 sleep-10-25
 foo foo
 foo/bar foo-bar
 foo/custom foo-custom
+simple-service simple-service
 EOT
 
 for endpoint in subpages subpages-arc subpages-service subpages-service-arc
