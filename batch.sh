@@ -1,6 +1,7 @@
 #!/bin/bash
 set -ex
 
+runs=100
 samples=25
 #workers='5 10 15 20 21 22 23 24 25 26 27 28 29 30 40 50 100'
 workers="$(jot -s " " 50)"
@@ -22,17 +23,20 @@ done
 now="$(date -u +%Y.%m.%d-%H.%M.%SZ)"
 mkdir -p stats/"$now"
 
-cargo run -q -r -p axum-hammer -- run \
-    -o "stats/$now/hello.json" \
-    "http://127.0.0.1:8080/hello" \
-    "$samples" \
-    $workers
-
-cargo run -q -r -p axum-hammer -- run \
-    -o "stats/$now/sleep-10-25.json" \
-    "http://127.0.0.1:8080/sleep?min=10&max=25" \
-    "$samples" \
-    $workers
+while read -r urlpath filename
+do
+    cargo run -q -r -p axum-hammer -- run \
+        -o "stats/$now/$filename.json" \
+        "http://127.0.0.1:8080/$urlpath" \
+        "$runs" \
+        $workers
+done <<EOT
+hello hello
+sleep?min=10&max=25 sleep-10-25
+foo foo
+foo/bar foo-bar
+foo/custom foo-custom
+EOT
 
 for endpoint in subpages subpages-arc subpages-service subpages-service-arc
 do

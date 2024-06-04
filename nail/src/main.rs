@@ -65,6 +65,12 @@ async fn run(args: Arguments) -> anyhow::Result<()> {
     let app = Router::new()
         .route("/hello", get(|| async { "Hello, world!\n" }))
         .route("/sleep", get(sleep_for_params))
+        .route("/foo", get(|| async { "Foo\n" }))
+        .route("/foo/bar", get(|| async { "Foo Bar\n" }))
+        .route(
+            "/foo/:key",
+            get(|Path(key): Path<String>| async move { format!("Foo {key}\n") }),
+        )
         .nest("/subpages", {
             let subpages = SubpageService::new("/subpages", &mut rng);
             let subpages2 = subpages.clone();
