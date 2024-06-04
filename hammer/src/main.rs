@@ -24,6 +24,9 @@ struct Arguments {
 #[derive(Clone, Debug, Eq, PartialEq, Subcommand)]
 enum Command {
     Run {
+        #[arg(short = 'J', long)]
+        json_file: Option<PathBuf>,
+
         url: Url,
 
         requests: NonZeroUsize,
@@ -49,10 +52,19 @@ enum Command {
 async fn main() -> anyhow::Result<()> {
     let (mut reporter, session, worker_qtys) = match Arguments::parse().command {
         Command::Run {
+            json_file,
             url,
             requests,
             workers,
-        } => (Reporter::csv(), Session::Repeat { url, requests }, workers),
+        } => (
+            if let Some(path) = json_file {
+                Reporter::json(path, url.clone())
+            } else {
+                Reporter::csv()
+            },
+            Session::Repeat { url, requests },
+            workers,
+        ),
         Command::Subpages {
             json_file,
             url,
