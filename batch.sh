@@ -19,16 +19,10 @@ do sleep 1
 done
 
 now="$(date -u +%Y.%m.%d-%H.%M.%SZ)"
-mkdir -p stats/one-service-"$now"
+mkdir -p stats/one-route-"$now"
 
-while read -r urlpath filename
-do
-    cargo run -q -r -p axum-hammer -- run \
-        -o "stats/one-service-$now/$filename.json" \
-        "http://127.0.0.1:8080/$urlpath" \
-        "$runs" \
-        $workers
-done <<EOT
-hello hello
-hello-service hello-service
-EOT
+cargo run -q -r -p axum-hammer -- run \
+    -o "stats/one-route-$now/hello.json" \
+    "http://127.0.0.1:8080/hello" \
+    "$runs" \
+    $workers

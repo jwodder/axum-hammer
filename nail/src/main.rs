@@ -1,8 +1,7 @@
 use anyhow::Context;
-use axum::{extract::Request, routing::get, Router};
+use axum::{routing::get, Router};
 use clap::Parser;
 use std::net::IpAddr;
-use tower::service_fn;
 
 #[derive(Clone, Debug, Eq, Parser, PartialEq)]
 struct Arguments {
@@ -18,14 +17,7 @@ struct Arguments {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Arguments::parse();
-    let app = Router::new()
-        .route("/hello", get(|| async { "Hello, world!\n" }))
-        .nest_service(
-            "/hello-service",
-            service_fn(|_: Request| async move {
-                Ok::<_, std::convert::Infallible>("Hello from a service!\n")
-            }),
-        );
+    let app = Router::new().route("/hello", get(|| async { "Hello, world!\n" }));
     let listener = tokio::net::TcpListener::bind((args.ip_addr, args.port))
         .await
         .context("failed to bind listener")?;
