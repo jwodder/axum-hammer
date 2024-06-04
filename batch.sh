@@ -6,7 +6,10 @@ workers='5 10 15 20 21 22 23 24 25 26 27 28 29 30 40 50 100'
 
 cd "$(dirname "$0")"
 
-cargo build -r -p axum-hammer -p axum-nail
+# The packages need to be built in separate commands due to
+# <https://github.com/rust-lang/cargo/issues/4463> or similar:
+cargo build -r -p axum-hammer
+cargo build -r -p axum-nail
 
 cargo run -q -r -p axum-nail &
 trap "kill $!" EXIT
