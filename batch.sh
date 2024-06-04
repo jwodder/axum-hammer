@@ -18,8 +18,9 @@ done
 
 for endpoint in subpages subpages-arc subpages-service subpages-service-arc
 do
-    cargo run -q -r -p axum-hammer -- \
-        subpages --samples 25 "http://127.0.0.1:8080/$endpoint" \
-        5 10 15 20 21 22 23 24 25 26 27 28 29 30 40 50 100 \
-        > "stats/$now/$endpoint.csv"
+    cargo run -q -r -p axum-hammer -- subpages \
+        -J "stats/$now/$endpoint.json" \
+        --samples 25 \
+        "http://127.0.0.1:8080/$endpoint" \
+        5 10 15 20 21 22 23 24 25 26 27 28 29 30 40 50 100
 done
