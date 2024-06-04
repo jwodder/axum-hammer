@@ -4,7 +4,7 @@ set -ex
 runs=100
 samples=25
 #workers='5 10 15 20 21 22 23 24 25 26 27 28 29 30 40 50 100'
-workers="$(jot -s " " 50)"
+workers="$(seq -s " " 50)"
 
 cd "$(dirname "$0")"
 
