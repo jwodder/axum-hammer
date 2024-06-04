@@ -1,16 +1,12 @@
-mod show_duration;
 mod tasks;
-use crate::show_duration::show_duration_as_seconds;
 use crate::tasks::request_tasks;
 use anyhow::Context;
 use clap::{Parser, Subcommand};
 use futures_util::TryStreamExt;
+use patharg::OutputArg;
 use serde::Serialize;
-use statrs::statistics::{Data, Distribution};
-use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::num::NonZeroUsize;
-use std::path::PathBuf;
 use std::time::{Duration, Instant};
 use time::OffsetDateTime;
 use url::Url;
@@ -24,8 +20,8 @@ struct Arguments {
 #[derive(Clone, Debug, Eq, PartialEq, Subcommand)]
 enum Command {
     Run {
-        #[arg(short = 'J', long)]
-        json_file: Option<PathBuf>,
+        #[arg(short = 'o', long, default_value_t)]
+        outfile: OutputArg,
 
         url: Url,
 
@@ -35,8 +31,8 @@ enum Command {
         workers: Vec<NonZeroUsize>,
     },
     Subpages {
-        #[arg(short = 'J', long)]
-        json_file: Option<PathBuf>,
+        #[arg(short = 'o', long, default_value_t)]
+        outfile: OutputArg,
 
         #[arg(short, long, default_value = "10")]
         samples: NonZeroUsize,
@@ -52,30 +48,22 @@ enum Command {
 async fn main() -> anyhow::Result<()> {
     let (mut reporter, session, worker_qtys) = match Arguments::parse().command {
         Command::Run {
-            json_file,
+            outfile,
             url,
             requests,
             workers,
         } => (
-            if let Some(path) = json_file {
-                Reporter::json(path, url.clone())
-            } else {
-                Reporter::csv()
-            },
+            Reporter::new(outfile, url.clone()),
             Session::Repeat { url, requests },
             workers,
         ),
         Command::Subpages {
-            json_file,
+            outfile,
             url,
             workers,
             samples,
         } => (
-            if let Some(path) = json_file {
-                Reporter::json(path, url.clone())
-            } else {
-                Reporter::csv()
-            },
+            Reporter::new(outfile, url.clone()),
             Session::Subpages { root_url: url },
             workers
                 .into_iter()
@@ -153,100 +141,45 @@ struct Report {
     overall_time: Duration,
 }
 
-impl Report {
-    fn csv_header() -> &'static str {
-        "workers,requests,request_time_mean,request_time_stddev,overall_time"
-    }
-
-    fn as_csv(&self) -> String {
-        let Stats { mean, stddev, qty } = Stats::for_durations(&self.request_times);
-        format!(
-            "{workers},{qty},{mean},{stddev},{elapsed}",
-            workers = self.workers,
-            elapsed = show_duration_as_seconds(self.overall_time),
-        )
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-struct Stats {
-    mean: f64,
-    stddev: f64,
-    qty: usize,
-}
-
-impl Stats {
-    fn for_durations(durations: &[Duration]) -> Stats {
-        let times = durations
-            .iter()
-            .map(Duration::as_secs_f64)
-            .collect::<Vec<_>>();
-        let data = Data::new(times);
-        let mean = data
-            .mean()
-            .expect("mean should exist for nonzero number of samples");
-        let stddev = data
-            .std_dev()
-            .expect("stddev should exist for nonzero number of samples");
-        let qty = data.len();
-        Stats { mean, stddev, qty }
-    }
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
-enum Reporter {
-    Json { outfile: PathBuf, data: StatReport },
-    Csv,
+struct Reporter {
+    outfile: OutputArg,
+    data: StatReport,
 }
 
 impl Reporter {
-    fn json(outfile: PathBuf, base_url: Url) -> Self {
-        Reporter::Json {
+    fn new(outfile: OutputArg, base_url: Url) -> Self {
+        Reporter {
             outfile,
             data: StatReport::new(base_url),
         }
     }
 
-    fn csv() -> Self {
-        Reporter::Csv
-    }
-
     fn start(&mut self) {
-        match self {
-            Reporter::Json { data, .. } => data.start_time = Some(OffsetDateTime::now_utc()),
-            Reporter::Csv => println!("{}", Report::csv_header()),
-        }
+        self.data.start_time = Some(OffsetDateTime::now_utc());
     }
 
     fn process(&mut self, report: Report) {
-        match self {
-            Reporter::Json { data, .. } => {
-                eprintln!(
-                    "Finished: workers = {}, requests = {}, elapsed = {:?}",
-                    report.workers,
-                    report.request_times.len(),
-                    report.overall_time
-                );
-                data.traversals.push(report);
-            }
-            Reporter::Csv => println!("{}", report.as_csv()),
-        }
+        eprintln!(
+            "Finished: workers = {}, requests = {}, elapsed = {:?}",
+            report.workers,
+            report.request_times.len(),
+            report.overall_time
+        );
+        self.data.traversals.push(report);
     }
 
-    fn end(self) -> anyhow::Result<()> {
-        match self {
-            Reporter::Json { outfile, mut data } => {
-                data.end_time = Some(OffsetDateTime::now_utc());
-                let mut fp =
-                    BufWriter::new(File::create(outfile).context("failed to open JSON outfile")?);
-                serde_json::to_writer_pretty(&mut fp, &data)
-                    .context("failed to dump JSON to file")?;
-                fp.write_all(b"\n")
-                    .context("failed to write final newline to JSON outfile")?;
-                fp.flush().context("failed to flush JSON outfile")?;
-            }
-            Reporter::Csv => (),
-        }
+    fn end(mut self) -> anyhow::Result<()> {
+        self.data.end_time = Some(OffsetDateTime::now_utc());
+        let mut fp = BufWriter::new(
+            self.outfile
+                .create()
+                .context("failed to open JSON outfile")?,
+        );
+        serde_json::to_writer_pretty(&mut fp, &self.data).context("failed to dump JSON to file")?;
+        fp.write_all(b"\n")
+            .context("failed to write final newline to JSON outfile")?;
+        fp.flush().context("failed to flush JSON outfile")?;
         Ok(())
     }
 }

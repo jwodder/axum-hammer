@@ -22,13 +22,13 @@ now="$(date -u +%Y.%m.%d-%H.%M.%SZ)"
 mkdir -p stats/"$now"
 
 cargo run -q -r -p axum-hammer -- run \
-    -J "stats/$now/hello.json" \
+    -o "stats/$now/hello.json" \
     "http://127.0.0.1:8080/hello" \
     "$samples" \
     $workers
 
 cargo run -q -r -p axum-hammer -- run \
-    -J "stats/$now/sleep-10-25.json" \
+    -o "stats/$now/sleep-10-25.json" \
     "http://127.0.0.1:8080/sleep?min=10&max=25" \
     "$samples" \
     $workers
@@ -36,7 +36,7 @@ cargo run -q -r -p axum-hammer -- run \
 for endpoint in subpages subpages-arc subpages-service subpages-service-arc
 do
     cargo run -q -r -p axum-hammer -- subpages \
-        -J "stats/$now/$endpoint.json" \
+        -o "stats/$now/$endpoint.json" \
         --samples "$samples" \
         "http://127.0.0.1:8080/$endpoint" \
         $workers
