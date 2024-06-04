@@ -1,4 +1,4 @@
-#!/usr/bin/env pipx run
+#!/usr/bin/env -S pipx run
 # /// script
 # requires-python = ">=3.9"
 # dependencies = ["click ~= 8.0", "matplotlib ~= 3.9"]
